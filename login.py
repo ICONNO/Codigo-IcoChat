@@ -1,23 +1,43 @@
+import json
+import logging
+from pathlib import Path
+from typing import Optional
+
+import socket
 import tkinter as tk
 from tkinter import messagebox
-import socket
-import json
-import os
+
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("icocchat.log"),
+        logging.StreamHandler()
+    ]
+)
 
 class LoginWindow:
+    """
+    Clase para manejar la ventana de inicio de sesión de IcoChat.
+    """
+
     def __init__(self):
+        """
+        Inicializa la ventana de inicio de sesión.
+        """
         self.root = tk.Tk()
         self.root.title("Iniciar sesión - IcoChat")
         self.root.configure(bg="#2C2F33")
-        
-        # Mantemos una base de 400x300
-        # y escalamos si la pantalla es más pequeña
-        self.root.resizable(False, False)  # Para no permitir redimensionamiento manual
+        self.root.resizable(False, False)  # No permitir redimensionamiento manual
 
         # Cambiar el ícono de la ventana
-        self.root.iconphoto(False, tk.PhotoImage(file="icochat.png"))
+        try:
+            self.root.iconphoto(False, tk.PhotoImage(file="icochat.png"))
+        except Exception as e:
+            logging.error(f"Error cargando el icono de la ventana: {e}")
 
-        # Centrar (y escalar si la pantalla es muy pequeña)
+        # Centrar y escalar la ventana
         self.center_window(400, 300)
 
         # Variables para email, contraseña y recordarme
@@ -40,10 +60,14 @@ class LoginWindow:
         # Interceptar el cierre de la ventana
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-    def center_window(self, base_width, base_height):
+    def center_window(self, base_width: int, base_height: int) -> None:
         """
         Centra la ventana en la pantalla y, si la resolución es menor
         que base_width x base_height, reduce proporcionalmente el tamaño.
+
+        Args:
+            base_width (int): Ancho base de la ventana.
+            base_height (int): Alto base de la ventana.
         """
         # Obtener resolución actual
         screen_width = self.root.winfo_screenwidth()
@@ -70,27 +94,71 @@ class LoginWindow:
 
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
-    def create_widgets(self):
+    def create_widgets(self) -> None:
+        """
+        Crea y organiza los widgets de la ventana de inicio de sesión.
+        """
         frame = tk.Frame(self.root, bg="#2C2F33", padx=20, pady=20)
         frame.pack(expand=True, fill="both")
 
-        tk.Label(frame, text="Correo electrónico", bg="#2C2F33", fg="#FFFFFF", font=("Arial", 10)).pack(anchor="w", pady=5)
-        tk.Entry(frame, textvariable=self.email, font=("Arial", 12)).pack(fill="x", pady=5)
+        # Correo electrónico
+        tk.Label(
+            frame,
+            text="Correo electrónico",
+            bg="#2C2F33",
+            fg="#FFFFFF",
+            font=("Arial", 10)
+        ).pack(anchor="w", pady=5)
+        tk.Entry(
+            frame,
+            textvariable=self.email,
+            font=("Arial", 12)
+        ).pack(fill="x", pady=5)
 
-        tk.Label(frame, text="Contraseña", bg="#2C2F33", fg="#FFFFFF", font=("Arial", 10)).pack(anchor="w", pady=5)
+        # Contraseña
+        tk.Label(
+            frame,
+            text="Contraseña",
+            bg="#2C2F33",
+            fg="#FFFFFF",
+            font=("Arial", 10)
+        ).pack(anchor="w", pady=5)
+
         password_frame = tk.Frame(frame, bg="#2C2F33")
         password_frame.pack(fill="x", pady=5)
-        self.password_entry = tk.Entry(password_frame, textvariable=self.password, font=("Arial", 12), show="*")
+
+        self.password_entry = tk.Entry(
+            password_frame,
+            textvariable=self.password,
+            font=("Arial", 12),
+            show="*"
+        )
         self.password_entry.pack(side=tk.LEFT, expand=True, fill="x")
+
         self.show_password_btn = tk.Button(
-            password_frame, text="👁", command=self.toggle_password, bg="#2C2F33", fg="#FFFFFF", borderwidth=0
+            password_frame,
+            text="👁",
+            command=self.toggle_password,
+            bg="#2C2F33",
+            fg="#FFFFFF",
+            borderwidth=0
         )
         self.show_password_btn.pack(side=tk.LEFT)
 
-        tk.Button(frame, text="Iniciar sesión", command=self.sign_in, font=("Arial", 12), bg="#FF8C00", fg="#FFFFFF").pack(fill="x", pady=10)
+        # Botón de inicio de sesión
+        tk.Button(
+            frame,
+            text="Iniciar sesión",
+            command=self.sign_in,
+            font=("Arial", 12),
+            bg="#FF8C00",
+            fg="#FFFFFF"
+        ).pack(fill="x", pady=10)
 
+        # Opciones de recordarme y olvidar contraseña
         options_frame = tk.Frame(frame, bg="#2C2F33")
         options_frame.pack(fill="x", pady=10)
+
         tk.Checkbutton(
             options_frame,
             text="Recordarme",
@@ -102,6 +170,7 @@ class LoginWindow:
             activeforeground="#FFFFFF",
             selectcolor="#2C2F33",
         ).pack(side=tk.LEFT)
+
         tk.Button(
             options_frame,
             text="Olvidé mi contraseña",
@@ -114,7 +183,10 @@ class LoginWindow:
             activeforeground="#FFFFFF",
         ).pack(side=tk.RIGHT)
 
-    def toggle_password(self):
+    def toggle_password(self) -> None:
+        """
+        Alterna la visibilidad de la contraseña en el campo de entrada.
+        """
         if self.password_visible:
             self.password_entry.config(show="*")
             self.show_password_btn.config(text="👁")
@@ -123,21 +195,28 @@ class LoginWindow:
             self.show_password_btn.config(text="👁‍🗨")
         self.password_visible = not self.password_visible
 
-    def sign_in(self):
-        email = self.email.get()
-        password = self.password.get()
+    def sign_in(self) -> None:
+        """
+        Maneja el proceso de inicio de sesión al hacer clic en el botón correspondiente.
+        """
+        email = self.email.get().strip()
+        password = self.password.get().strip()
+
+        if not email or not password:
+            messagebox.showwarning("Campos vacíos", "Por favor, ingresa tu correo electrónico y contraseña.")
+            return
 
         try:
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect(('190.107.177.156', 12345))  # Cambia a la IP y puerto del servidor
-            print("conectado")
-            login_data = {"email": email, "password": password}
-            client_socket.send(f"CREDENTIALS:{json.dumps(login_data)}".encode('utf-8'))
-            print("enviado")
-            response = client_socket.recv(1024).decode('utf-8')
-            client_socket.close()
-            print("cerrado")
-            print(response)
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+                client_socket.connect(('190.107.177.156', 12345))  # Cambia a la IP y puerto del servidor
+                logging.info("Conectado al servidor para inicio de sesión.")
+
+                login_data = {"email": email, "password": password}
+                client_socket.sendall(f"CREDENTIALS:{json.dumps(login_data)}".encode('utf-8'))
+                logging.info("Datos de inicio de sesión enviados al servidor.")
+
+                response = client_socket.recv(1024).decode('utf-8')
+                logging.info(f"Respuesta del servidor: {response}")
 
             response_data = json.loads(response)
             if response_data.get("status") == "received":
@@ -159,38 +238,86 @@ class LoginWindow:
                     messagebox.showerror("Error de credenciales", mens_val)
             else:
                 messagebox.showerror("Error", "El servidor envió una respuesta inesperada.")
+                logging.warning("Respuesta inesperada del servidor durante el inicio de sesión.")
+        except ConnectionRefusedError:
+            messagebox.showerror("Error de conexión", "No se pudo conectar al servidor. Inténtalo de nuevo más tarde.")
+            logging.error("Conexión rechazada por el servidor.")
+        except socket.timeout:
+            messagebox.showerror("Error de conexión", "Tiempo de espera agotado al intentar conectarse al servidor.")
+            logging.error("Tiempo de espera agotado al conectarse al servidor.")
+        except json.JSONDecodeError:
+            messagebox.showerror("Error", "Respuesta del servidor no válida.")
+            logging.error("Error al decodificar la respuesta JSON del servidor.")
         except Exception as e:
             messagebox.showerror("Error de conexión", f"No se pudo conectar al servidor: {e}")
+            logging.error(f"Error inesperado durante el inicio de sesión: {e}")
 
-    def on_close(self):
+    def on_close(self) -> None:
         """
-        Se llama al cerrar la ventana manualmente (la X).
-        No abrimos el chat si login_success=False.
+        Maneja el evento de cierre de la ventana.
+        No abre el chat si login_success=False.
         """
+        if not self.login_success:
+            logging.info("Ventana de login cerrada sin éxito en el inicio de sesión.")
         self.root.destroy()
 
-    def load_credentials(self):
-        if os.path.exists("credentials.json"):
-            with open("credentials.json", "r", encoding="utf-8") as file:
-                data = json.load(file)
-                self.email.set(data.get("email", ""))
-                self.password.set(data.get("password", ""))
+    def load_credentials(self) -> None:
+        """
+        Carga las credenciales almacenadas si la opción "Recordarme" está activa.
+        """
+        credentials_file = Path("credentials.json")
+        if credentials_file.exists():
+            try:
+                with credentials_file.open("r", encoding="utf-8") as file:
+                    data = json.load(file)
+                    self.email.set(data.get("email", ""))
+                    self.password.set(data.get("password", ""))
+                logging.info("Credenciales cargadas desde credentials.json.")
+            except (json.JSONDecodeError, IOError) as e:
+                logging.error(f"Error cargando las credenciales: {e}")
 
-    def save_credentials(self, email, password):
-        with open("credentials.json", "w", encoding="utf-8") as file:
-            json.dump({"email": email, "password": password}, file, ensure_ascii=False, indent=4)
+    def save_credentials(self, email: str, password: str) -> None:
+        """
+        Guarda las credenciales del usuario en un archivo.
 
-    def clear_credentials(self):
-        if os.path.exists("credentials.json"):
-            os.remove("credentials.json")
+        Args:
+            email (str): Correo electrónico del usuario.
+            password (str): Contraseña del usuario.
+        """
+        credentials_file = Path("credentials.json")
+        try:
+            with credentials_file.open("w", encoding="utf-8") as file:
+                json.dump({"email": email, "password": password}, file, ensure_ascii=False, indent=4)
+            logging.info("Credenciales guardadas en credentials.json.")
+        except IOError as e:
+            logging.error(f"Error guardando las credenciales: {e}")
 
-    def forgot_password(self):
+    def clear_credentials(self) -> None:
+        """
+        Elimina el archivo de credenciales si existe.
+        """
+        credentials_file = Path("credentials.json")
+        if credentials_file.exists():
+            try:
+                credentials_file.unlink()
+                logging.info("Archivo credentials.json eliminado.")
+            except IOError as e:
+                logging.error(f"Error eliminando credentials.json: {e}")
+
+    def forgot_password(self) -> None:
+        """
+        Maneja la acción de "Olvidé mi contraseña".
+        """
         messagebox.showinfo("Recuperar contraseña", "Por favor, contacta con soporte para restablecer tu contraseña.")
+        logging.info("Usuario solicitó recuperación de contraseña.")
 
-def run_login():
+def run_login() -> bool:
     """
-    Ejecuta la ventana de Login y retorna True si login fue exitoso,
+    Ejecuta la ventana de Login y retorna True si el inicio de sesión fue exitoso,
     False si el usuario cerró la ventana sin credenciales correctas.
+
+    Returns:
+        bool: Resultado del inicio de sesión.
     """
     app = LoginWindow()
     app.root.mainloop()
