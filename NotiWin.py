@@ -3,7 +3,6 @@ from typing import Optional
 
 from win10toast import ToastNotifier
 
-
 # Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
