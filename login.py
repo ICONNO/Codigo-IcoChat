@@ -6,7 +6,7 @@ from typing import Optional
 import socket
 import tkinter as tk
 from tkinter import messagebox
-
+ 
 # Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
