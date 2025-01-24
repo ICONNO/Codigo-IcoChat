@@ -28,7 +28,6 @@ logging.basicConfig(
 # Configuración de servidor
 SERVER_CONFIG_FILE = Path("server_config.json")
 
-
 def load_server_config() -> Dict[str, Any]:
     """
     Carga la configuración del servidor desde un archivo JSON.
@@ -69,14 +68,12 @@ root: Optional[tk.Tk] = None
 chat_display: Optional[tk.Text] = None
 message_entry: Optional[tk.Entry] = None
 
-
 def play_notification_sound() -> None:
     """Reproduce el sonido de notificación."""
     try:
         playsound("notificacion.mp3")
     except Exception as e:
         logging.error(f"Error reproduciendo el sonido de notificación: {e}")
-
 
 def receive_messages(client_socket: socket.socket) -> None:
     """
@@ -116,7 +113,6 @@ def receive_messages(client_socket: socket.socket) -> None:
             logging.error(f"Error recibiendo mensaje: {e}")
             break
 
-
 def recibir_archivo(archivo_nombre: str, client_socket: socket.socket) -> None:
     """
     Recibe un archivo del servidor y actualiza el chat.
@@ -144,7 +140,6 @@ def recibir_archivo(archivo_nombre: str, client_socket: socket.socket) -> None:
         logging.error(f"Error recibiendo archivo: {e}")
         messagebox.showerror("Error", f"No se pudo descargar el archivo: {e}")
 
-
 def load_user_name() -> str:
     """
     Carga el nombre de usuario desde el archivo de configuración.
@@ -162,7 +157,6 @@ def load_user_name() -> str:
             logging.error(f"Error cargando el nombre de usuario: {e}")
     return ""
 
-
 def save_user_name(user_name: str) -> None:
     """
     Guarda el nombre de usuario en el archivo de configuración.
@@ -177,7 +171,6 @@ def save_user_name(user_name: str) -> None:
         logging.info("Nombre de usuario guardado en user_name.json.")
     except IOError as e:
         logging.error(f"Error guardando el nombre de usuario: {e}")
-
 
 def connect_to_server() -> None:
     """Establece la conexión con el servidor y comienza a recibir mensajes."""
@@ -205,7 +198,6 @@ def connect_to_server() -> None:
     threading.Thread(target=receive_messages, args=(client_socket,), daemon=True).start()
     load_chat_history()
 
-
 def load_chat_history() -> None:
     """Carga el historial de chat desde un archivo local."""
     historial_file = Path("historial_chat.json")
@@ -220,7 +212,6 @@ def load_chat_history() -> None:
             logging.info("Historial de chat cargado desde historial_chat.json.")
         except json.JSONDecodeError:
             logging.error("Error al decodificar el archivo historial_chat.json")
-
 
 def save_message(message: str, sender: str = "other") -> None:
     """
@@ -248,18 +239,15 @@ def save_message(message: str, sender: str = "other") -> None:
     except IOError as e:
         logging.error(f"Error guardando el historial de chat: {e}")
 
-
 def reset_notifications(event: Optional[tk.Event] = None) -> None:
     """Resetea el contador de mensajes no leídos."""
     global unread_messages_count
     unread_messages_count = 0
     logging.info("Contador de mensajes no leídos reseteado.")
 
-
 def show_uploaded_files() -> None:
     """Muestra la ventana de archivos subidos."""
     Archi.mostrar_archivos(client_socket)
-
 
 def subir_archivo() -> None:
     """Permite al usuario seleccionar y subir un archivo al servidor."""
@@ -286,7 +274,6 @@ def subir_archivo() -> None:
         except Exception as e:
             logging.error(f"Error subiendo archivo: {e}")
             messagebox.showerror("Error", f"No se pudo subir el archivo: {e}")
-
 
 def update_chat(message: str, sender: str = "other") -> None:
     """
@@ -318,7 +305,6 @@ def update_chat(message: str, sender: str = "other") -> None:
     chat_display.see(tk.END)
     logging.info(f"Mensaje actualizado en el chat: {message}")
 
-
 def send_message(event: Optional[tk.Event] = None) -> None:
     """
     Envía el mensaje escrito por el usuario al servidor.
@@ -342,7 +328,6 @@ def send_message(event: Optional[tk.Event] = None) -> None:
         except Exception as e:
             logging.error(f"Error enviando mensaje: {e}")
             messagebox.showerror("Error", f"No se pudo enviar el mensaje: {e}")
-
 
 def run_chat() -> None:
     """Inicializa y ejecuta la interfaz de chat."""
@@ -374,10 +359,10 @@ def run_chat() -> None:
     chat_display.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
     # Configuración de etiquetas de texto
-    chat_display.tag_configure("self", justify='right', background="#DCF8C6",
+    chat_display.tag_configure("self", justify='right', background="#FFFFFF",
                                foreground="#000000", font=("Arial", 12),
                                lmargin1=10, lmargin2=10, rmargin=10)
-    chat_display.tag_configure("self_name", justify='right', background="#DCF8C6",
+    chat_display.tag_configure("self_name", justify='right', background="#FFFFFF",
                                foreground="#000000", font=("Arial", 12, "bold"),
                                lmargin1=10, lmargin2=10, rmargin=10)
     chat_display.tag_configure("other_name", justify='left', foreground="#FF8C00",
@@ -410,7 +395,6 @@ def run_chat() -> None:
     connect_to_server()
 
     root.mainloop()
-
 
 def main() -> None:
     """
