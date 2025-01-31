@@ -1,18 +1,12 @@
+# src/NotiWin.py
+
 import logging
 from typing import Optional
+from pathlib import Path
 
 from win10toast import ToastNotifier
 
-# Configuración de logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("icocchat.log"),
-        logging.StreamHandler()
-    ]
-)
-
+from config import ASSETS_DIR  # Importamos ASSETS_DIR desde config.py
 
 class NotificadorWin:
     """
@@ -24,7 +18,7 @@ class NotificadorWin:
         Inicializa una instancia del notificador de Windows.
         """
         self.notificador = ToastNotifier()
-        logging.info("Inicializado ToastNotifier para notificaciones de Windows.")
+        logging.info("ToastNotifier inicializado para notificaciones de Windows.")
 
     def mostrar_notificacion(
         self, 
@@ -42,6 +36,17 @@ class NotificadorWin:
             duracion (int, optional): Duración de la notificación en segundos. Defaults to 5.
             icon_path (Optional[str], optional): Ruta al icono de la notificación. Defaults to None.
         """
+        # Actualizar icon_path para que apunte a la carpeta 'assets/' si se proporciona
+        if icon_path:
+            icon_full_path = ASSETS_DIR / Path(icon_path).name
+            if not icon_full_path.exists():
+                logging.warning(f"Icono proporcionado no encontrado en ASSETS_DIR: {icon_full_path}")
+                icon_full_path = None
+            else:
+                icon_path = str(icon_full_path)
+        else:
+            icon_path = None
+
         try:
             self.notificador.show_toast(
                 titulo, 
@@ -54,10 +59,8 @@ class NotificadorWin:
         except Exception as e:
             logging.error(f"Error mostrando notificación '{titulo}': {e}")
 
-
 # Instancia única del notificador
 notificador_win = NotificadorWin()
-
 
 def mostrar_notificacionWin(
     titulo: str, 
