@@ -6,16 +6,32 @@ from typing import Optional
 import socket
 import tkinter as tk
 from tkinter import messagebox
- 
+
+# Ruta absoluta al directorio raíz del proyecto
+BASE_DIR = Path(__file__).parent.parent.resolve()
+
+# Rutas a las carpetas específicas
+DATA_DIR = BASE_DIR / 'data'
+ASSETS_DIR = BASE_DIR / 'assets'
+
+# Asegurarse de que las carpetas existen
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+
 # Configuración de logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("icocchat.log"),
-        logging.StreamHandler()
-    ]
-)
+LOG_FILE = DATA_DIR / "icocchat.log"
+
+def run_login() -> bool:
+    """
+    Ejecuta la ventana de Login y retorna True si el inicio de sesión fue exitoso,
+    False si el usuario cerró la ventana sin credenciales correctas.
+
+    Returns:
+        bool: Resultado del inicio de sesión.
+    """
+    app = LoginWindow()
+    app.root.mainloop()
+    return app.login_success
 
 class LoginWindow:
     """
@@ -261,11 +277,15 @@ class LoginWindow:
             logging.info("Ventana de login cerrada sin éxito en el inicio de sesión.")
         self.root.destroy()
 
-    def load_credentials(self) -> None:
+    def load_credentials(self) -> str:
         """
         Carga las credenciales almacenadas si la opción "Recordarme" está activa.
+
+        Returns:
+            str: Correo electrónico cargado.
+            str: Contraseña cargada.
         """
-        credentials_file = Path("credentials.json")
+        credentials_file = DATA_DIR/"credentials.json"
         if credentials_file.exists():
             try:
                 with credentials_file.open("r", encoding="utf-8") as file:
@@ -284,41 +304,31 @@ class LoginWindow:
             email (str): Correo electrónico del usuario.
             password (str): Contraseña del usuario.
         """
-        credentials_file = Path("credentials.json")
+        credentials_file =  DATA_DIR/"credentials.json"
+
+        data = {"email": email, "password": password}
         try:
-            with credentials_file.open("w", encoding="utf-8") as file:
-                json.dump({"email": email, "password": password}, file, ensure_ascii=False, indent=4)
-            logging.info("Credenciales guardadas en credentials.json.")
+            with (DATA_DIR / "credentials.json").open("w", encoding="utf-8") as file:
+                json.dump(data, file, ensure_ascii=False, indent=4)
+            logging.info("credenciales guardadas en credentials.json.")
         except IOError as e:
             logging.error(f"Error guardando las credenciales: {e}")
 
     def clear_credentials(self) -> None:
         """
-        Elimina el archivo de credenciales si existe.
+        Elimina las credenciales almacenadas.
         """
-        credentials_file = Path("credentials.json")
+        credentials_file = DATA_DIR/"credentials.json"
         if credentials_file.exists():
             try:
                 credentials_file.unlink()
-                logging.info("Archivo credentials.json eliminado.")
+                logging.info("Credenciales eliminadas de credentials.json.")
             except IOError as e:
-                logging.error(f"Error eliminando credentials.json: {e}")
+                logging.error(f"Error eliminando las credenciales: {e}")
 
     def forgot_password(self) -> None:
         """
         Maneja la acción de "Olvidé mi contraseña".
         """
         messagebox.showinfo("Recuperar contraseña", "Por favor, contacta con soporte para restablecer tu contraseña.")
-        logging.info("Usuario solicitó recuperación de contraseña.")
-
-def run_login() -> bool:
-    """
-    Ejecuta la ventana de Login y retorna True si el inicio de sesión fue exitoso,
-    False si el usuario cerró la ventana sin credenciales correctas.
-
-    Returns:
-        bool: Resultado del inicio de sesión.
-    """
-    app = LoginWindow()
-    app.root.mainloop()
-    return app.login_success
+        logging.info
