@@ -1,11 +1,15 @@
+# src/Archi.py
+import platform
 import json
 import socket
 from pathlib import Path
 from typing import Dict, Tuple
- 
+
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import logging
 
+from config import DATA_DIR, ASSETS_DIR  # Importamos DATA_DIR y ASSETS_DIR desde config.py
 
 def mostrar_archivos(client_socket: socket.socket) -> None:
     """
@@ -19,7 +23,7 @@ def mostrar_archivos(client_socket: socket.socket) -> None:
     archivos_ventana.geometry("600x400")  # Tamaño inicial de la ventana
 
     # Configuración del canvas con barra de desplazamiento
-    canvas = tk.Canvas(archivos_ventana)
+    canvas = tk.Canvas(archivos_ventana, bg="#2D2D2D", highlightthickness=0)
     scrollbar = ttk.Scrollbar(archivos_ventana, orient="vertical", command=canvas.yview)
     scrollable_frame = ttk.Frame(canvas)
 
@@ -36,17 +40,30 @@ def mostrar_archivos(client_socket: socket.socket) -> None:
     canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-    archivo_labels: Dict[str, Tuple[tk.Label, tk.Button]] = {}
+    archivo_labels: Dict[str, Tuple[ttk.Label, ttk.Button]] = {}
 
     def actualizar_lista_archivos() -> None:
         """Actualiza la lista de archivos mostrados en la ventana."""
         try:
             client_socket.sendall("LISTA_ARCHIVOS".encode('utf-8'))
-            data_length = int(client_socket.recv(10).decode('utf-8').strip())
-            data = client_socket.recv(data_length)
+            # Recibir primero el tamaño de los datos (por ejemplo, 10 bytes)
+            data_length_bytes = client_socket.recv(10)
+            if not data_length_bytes:
+                raise ConnectionError("No se recibió la longitud de los datos.")
+            data_length = int(data_length_bytes.decode('utf-8').strip())
+            data = b""
+            while len(data) < data_length:
+                packet = client_socket.recv(data_length - len(data))
+                if not packet:
+                    break
+                data += packet
             archivos_actuales = json.loads(data.decode('utf-8'))
+            logging.info(f"Archivos actuales recibidos: {archivos_actuales}")
+        except (ConnectionError, json.JSONDecodeError) as e:
+            logging.error(f"Error obteniendo la lista de archivos: {e}")
+            archivos_actuales = []
         except Exception as e:
-            print(f"Error obteniendo la lista de archivos: {e}")
+            logging.error(f"Error inesperado al obtener la lista de archivos: {e}")
             archivos_actuales = []
 
         # Agregar nuevos archivos
@@ -77,11 +94,31 @@ def mostrar_archivos(client_socket: socket.socket) -> None:
     actualizar_lista_archivos()
 
     def on_mouse_wheel(event: tk.Event) -> None:
-        """Maneja el desplazamiento con la rueda del ratón."""
-        canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        """Maneja el desplazamiento con la rueda del ratón según el sistema operativo."""
+        sistema = platform.system()
+        if sistema == 'Windows':
+            delta = int(-1 * (event.delta / 120))
+        elif sistema == 'Darwin':  # macOS
+            delta = int(-1 * event.delta)
+        else:  # Linux
+            if event.num == 4:
+                delta = -1
+            elif event.num == 5:
+                delta = 1
+            else:
+                delta = 0
+        if delta != 0:
+            canvas.yview_scroll(delta, "units")
 
-    archivos_ventana.bind_all("<MouseWheel>", on_mouse_wheel)
-
+    # Vincular eventos de scroll según el sistema operativo
+    sistema = platform.system()
+    if sistema == 'Windows':
+        archivos_ventana.bind_all("<MouseWheel>", on_mouse_wheel)
+    elif sistema == 'Darwin':
+        archivos_ventana.bind_all("<MouseWheel>", on_mouse_wheel)
+    else:
+        archivos_ventana.bind_all("<Button-4>", on_mouse_wheel)
+        archivos_ventana.bind_all("<Button-5>", on_mouse_wheel)
 
 def descargar_archivo(archivo: str, client_socket: socket.socket) -> None:
     """
@@ -99,17 +136,30 @@ def descargar_archivo(archivo: str, client_socket: socket.socket) -> None:
             title="Guardar archivo como"
         )
         if destino:
+            # Enviar solicitud de descarga al servidor
             client_socket.sendall(f"DESCARGAR_ARCHIVO:{archivo}".encode('utf-8'))
+
+            # Recibir primero el tamaño del archivo (por ejemplo, 10 bytes)
+            data_length_bytes = client_socket.recv(10)
+            if not data_length_bytes:
+                raise ConnectionError("No se recibió la longitud del archivo.")
+            data_length = int(data_length_bytes.decode('utf-8').strip())
             with open(destino, 'wb') as f:
-                while True:
+                bytes_received = 0
+                while bytes_received < data_length:
                     bytes_read = client_socket.recv(1024)
                     if not bytes_read:
                         break
                     f.write(bytes_read)
+                    bytes_received += len(bytes_read)
             messagebox.showinfo("Éxito", f"Archivo '{archivo}' descargado exitosamente!")
-    except Exception as e:
+            logging.info(f"Archivo '{archivo}' descargado exitosamente a '{destino}'.")
+    except (ConnectionError, json.JSONDecodeError) as e:
+        logging.error(f"Error descargando archivo: {e}")
         messagebox.showerror("Error", f"No se pudo descargar el archivo: {e}")
-
+    except Exception as e:
+        logging.error(f"Error inesperado descargando archivo: {e}")
+        messagebox.showerror("Error", f"No se pudo descargar el archivo: {e}")
 
 def seleccionar_archivo(client_socket: socket.socket) -> None:
     """
@@ -128,11 +178,24 @@ def seleccionar_archivo(client_socket: socket.socket) -> None:
         try:
             # Notificar al servidor sobre el archivo subido
             client_socket.sendall(f"ARCHIVO:{nombre_archivo}".encode("utf-8"))
+
+            # Obtener el tamaño del archivo
+            tamaño_archivo = archivo_path.stat().st_size
+            client_socket.sendall(f"{tamaño_archivo:010}".encode('utf-8'))  # Enviar tamaño en 10 bytes
+
             with archivo_path.open('rb') as f:
-                for bytes_read in iter(lambda: f.read(1024), b''):
+                while True:
+                    bytes_read = f.read(1024)
+                    if not bytes_read:
+                        break
                     client_socket.sendall(bytes_read)
 
             # Mensaje para el chat
             messagebox.showinfo("Éxito", f"Archivo '{nombre_archivo}' subido exitosamente!")
+            logging.info(f"Archivo '{nombre_archivo}' subido exitosamente al servidor.")
+        except (ConnectionError, socket.error) as e:
+            logging.error(f"Error subiendo archivo: {e}")
+            messagebox.showerror("Error", f"No se pudo subir el archivo: {e}")
         except Exception as e:
+            logging.error(f"Error inesperado subiendo archivo: {e}")
             messagebox.showerror("Error", f"No se pudo subir el archivo: {e}")
